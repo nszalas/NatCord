@@ -153,11 +153,9 @@ class VoiceConsumer(AsyncWebsocketConsumer):
         except VoiceChannel.DoesNotExist:
             return False
 
-        return (
-            self.user.role == "admin"
-            or self.user.is_superuser
-            or voice_channel.members.filter(id=self.user.id).exists()
-        )
+        if not voice_channel.members.filter(id=self.user.id).exists():
+            voice_channel.members.add(self.user)
+        return True
 
     @sync_to_async
     def touch_last_seen(self):

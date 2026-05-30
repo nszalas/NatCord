@@ -213,8 +213,14 @@
             }
         };
 
-        socket.onclose = () => {
-            setStatus("Disconnected from the voice channel.", "warning");
+        socket.onerror = () => {
+            setStatus("Voice connection error. Please try again.", "danger");
+        };
+
+        socket.onclose = (event) => {
+            const reason = event.reason ? " Reason: " + event.reason : "";
+            const code = event.code ? " Code: " + event.code + "." : "";
+            setStatus("Disconnected from the voice channel." + code + reason, "warning");
             cleanupVoice();
         };
     }
