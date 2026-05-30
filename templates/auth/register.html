@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block container_class %}app-page{% endblock %}
+
+{% block content %}
+<div class="auth-shell">
+    <div class="app-card">
+        <h2 class="app-page-title">Register</h2>
+
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="btn btn-natcord w-100">Register</button>
+        </form>
+        <a href="/login/" class="btn btn-natcord-dark w-100 mt-3">Login</a>
+    </div>
+</div>
+{% endblock %}

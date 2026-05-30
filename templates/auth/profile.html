@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block container_class %}app-page{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+    <h2 class="app-page-title">User profile</h2>
+
+    <div class="app-card">
+        <div class="d-flex align-items-center gap-4 mb-4">
+            {% if user.avatar %}
+                <img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="profile-avatar">
+            {% else %}
+                <span class="profile-avatar-fallback">{{ user.username|first|upper }}</span>
+            {% endif %}
+            <div>
+                <h3 class="mb-1">{{ user.username }}</h3>
+                <div class="text-muted">{{ user.email }}</div>
+                <span class="badge bg-success mt-2">{{ user.get_role_display }}</span>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="profile-form">
+            {% csrf_token %}
+            {{ user_form.as_p }}
+            <button class="btn btn-natcord">Save</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

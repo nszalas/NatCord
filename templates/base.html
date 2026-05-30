@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NatCord</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex: 0 0 36px;
+        }
+
+        .avatar-fallback {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #5865f2;
+            color: #fff;
+            font-weight: 700;
+            flex: 0 0 36px;
+        }
+
+        .notification-link {
+            position: relative;
+        }
+
+        .notification-link.has-unread {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.35);
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #dc3545;
+            border: 2px solid #212529;
+            display: none;
+        }
+
+        .notification-link.has-unread .notification-dot {
+            display: inline-block;
+        }
+
+        .notification-toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            max-width: 360px;
+            z-index: 1080;
+            display: none;
+        }
+
+        .main-navbar {
+            background: #186d10;
+            min-height: 76px;
+        }
+
+        .main-navbar .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .main-navbar .btn {
+            font-size: 1rem;
+            padding: 0.55rem 0.9rem;
+            font-weight: 600;
+        }
+
+        .main-navbar .btn-users {
+            background: #fff;
+            border-color: #fff;
+            color: #186d10;
+        }
+
+        .main-navbar .btn-users:hover,
+        .main-navbar .btn-users:focus {
+            background: #edf7eb;
+            border-color: #edf7eb;
+            color: #186d10;
+        }
+
+        .main-navbar .btn-auth {
+            background: #fff;
+            border-color: #fff;
+            color: #186d10;
+        }
+
+        .main-navbar .btn-auth:hover,
+        .main-navbar .btn-auth:focus {
+            background: #edf7eb;
+            border-color: #edf7eb;
+            color: #186d10;
+        }
+
+        .channels-sidebar {
+            background: #249d19;
+            min-height: calc(100vh - 76px);
+        }
+
+        .channels-sidebar-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .channels-sidebar .list-group-item {
+            background: transparent;
+            border: 0;
+            padding: 0.35rem 0;
+        }
+
+        .channels-sidebar .channel-link {
+            color: #000;
+            text-decoration: none;
+            font-weight: 650;
+            display: block;
+            padding: 0.35rem 0.25rem;
+        }
+
+        .channels-sidebar .channel-link:hover {
+            color: #111;
+            text-decoration: underline;
+        }
+
+        .channels-sidebar .admin-form-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .channels-sidebar .admin-create-card {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin: 0.5rem 0 1rem 1rem;
+        }
+
+        .channels-sidebar .admin-create-card .admin-form-title {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .channels-sidebar .admin-create-card p {
+            margin-bottom: 0.55rem;
+        }
+
+        .channels-sidebar form,
+        .channels-sidebar form p {
+            max-width: 100%;
+        }
+
+        .channels-sidebar input,
+        .channels-sidebar textarea,
+        .channels-sidebar select {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            border: 0;
+            border-radius: 6px;
+            padding: 0.45rem 0.55rem;
+            background: #e9ffe7;
+            color: #123a0f;
+            outline: none;
+        }
+
+        .channels-sidebar input:focus,
+        .channels-sidebar textarea:focus,
+        .channels-sidebar select:focus {
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(24, 109, 16, 0.25);
+        }
+
+        .channels-sidebar label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: #000;
+            font-weight: 650;
+        }
+
+        .channels-sidebar textarea {
+            min-height: 52px;
+            max-height: 52px;
+            resize: none;
+        }
+
+        .channels-sidebar .btn-create-channel {
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 700;
+            padding: 0.42rem 0.75rem;
+        }
+
+        .channels-sidebar .btn-create-channel:hover,
+        .channels-sidebar .btn-create-channel:focus {
+            background: #111;
+            border-color: rgba(255, 255, 255, 0.9);
+            color: #fff;
+        }
+
+        .user-list-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            background: #fff;
+            margin-bottom: 0.5rem;
+            border: 0;
+            border-radius: 6px;
+            padding: 0.85rem 1rem;
+        }
+
+        .user-list-main {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: inherit;
+            text-decoration: none;
+            flex: 1;
+        }
+
+        .user-list-main:hover {
+            text-decoration: none;
+        }
+
+        .user-list-name {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            font-size: 1.08rem;
+            line-height: 1.35;
+        }
+
+        .user-list-actions {
+            flex: 0 0 auto;
+        }
+
+        .user-list-row .avatar-sm,
+        .user-list-row .avatar-fallback {
+            width: 62px;
+            height: 62px;
+            flex-basis: 62px;
+            font-size: 1.45rem;
+        }
+
+        .btn-report-user {
+            background: #8a1f38;
+            border-color: #8a1f38;
+            color: #fff;
+            line-height: 1.05;
+            min-width: 112px;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.95rem;
+            text-align: center;
+            white-space: normal;
+        }
+
+        .btn-report-user:hover,
+        .btn-report-user:focus {
+            background: #71172c;
+            border-color: #71172c;
+            color: #fff;
+        }
+
+        .users-panel {
+            background: #ddfada;
+            min-height: calc(100vh - 76px);
+        }
+
+        .app-page {
+            background: #ddfada;
+            min-height: calc(100vh - 76px);
+            padding: 2rem 0;
+        }
+
+        .app-shell {
+            width: min(980px, calc(100% - 2rem));
+            margin: 0 auto;
+        }
+
+        .wide-app-shell {
+            width: min(1480px, calc(100% - 2rem));
+            margin: 0 auto;
+        }
+
+        .app-page-title {
+            font-size: 2rem;
+            font-weight: 850;
+            color: #0f3b0b;
+            margin-bottom: 1rem;
+        }
+
+        .app-card {
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(24, 109, 16, 0.12);
+            padding: 1.25rem;
+            box-shadow: 0 8px 24px rgba(12, 61, 8, 0.08);
+        }
+
+        .app-card + .app-card {
+            margin-top: 1rem;
+        }
+
+        .app-section-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #186d10;
+            margin: 1.25rem 0 0.75rem;
+        }
+
+        .app-input,
+        .app-page input,
+        .app-page textarea,
+        .app-page select {
+            border: 1px solid rgba(24, 109, 16, 0.25);
+            border-radius: 6px;
+            padding: 0.65rem 0.75rem;
+        }
+
+        .app-page input:focus,
+        .app-page textarea:focus,
+        .app-page select:focus {
+            border-color: #249d19;
+            box-shadow: 0 0 0 3px rgba(36, 157, 25, 0.18);
+            outline: none;
+        }
+
+        .btn-natcord {
+            background: #186d10;
+            border-color: #186d10;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .btn-natcord:hover,
+        .btn-natcord:focus {
+            background: #145b0d;
+            border-color: #145b0d;
+            color: #fff;
+        }
+
+        .btn-natcord-dark {
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .btn-natcord-dark:hover,
+        .btn-natcord-dark:focus {
+            background: #111;
+            color: #fff;
+        }
+
+        .profile-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #249d19;
+        }
+
+        .profile-avatar-fallback {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #249d19;
+            color: #fff;
+            font-size: 3rem;
+            font-weight: 850;
+            border: 4px solid #186d10;
+        }
+
+        .profile-form p {
+            margin-bottom: 0.9rem;
+        }
+
+        .profile-form .helptext {
+            display: block;
+            margin-top: 0.25rem;
+            margin-left: 0;
+            font-size: 0.82rem;
+            line-height: 1.25;
+            color: #5c6b58;
+        }
+
+        .profile-form textarea[name="bio"] {
+            min-height: 68px;
+            max-height: 68px;
+            resize: none;
+        }
+
+        .report-form textarea[name="reason"] {
+            min-height: 76px;
+            max-height: 76px;
+            resize: none;
+        }
+
+        .message-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 1rem;
+            align-items: start;
+            width: 100%;
+        }
+
+        .message-body {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .message-timestamp {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .file-name-hint {
+            display: block;
+            margin-top: 0.25rem;
+            max-width: 140px;
+            font-size: 0.78rem;
+            line-height: 1.15;
+            color: #365c31;
+            overflow-wrap: anywhere;
+            text-align: center;
+        }
+
+        .app-table {
+            margin-bottom: 0;
+        }
+
+        .app-table thead th {
+            background: #186d10;
+            color: #fff;
+            border: 0;
+            font-weight: 800;
+        }
+
+        .app-table tbody td {
+            background: #fff;
+            vertical-align: middle;
+            border-color: rgba(24, 109, 16, 0.12);
+        }
+
+        .app-table tbody tr:hover td {
+            background: #f5fff4;
+        }
+
+        .app-action-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn-wine {
+            background: #8a1f38;
+            border-color: #8a1f38;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .btn-wine:hover,
+        .btn-wine:focus {
+            background: #71172c;
+            border-color: #71172c;
+            color: #fff;
+        }
+
+        .auth-shell {
+            width: min(920px, calc(100% - 2rem));
+            margin: 0 auto;
+        }
+
+        .auth-shell .app-card {
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .auth-form p {
+            margin-bottom: 1rem;
+        }
+
+        .auth-form .helptext {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.82rem;
+            line-height: 1.25;
+            color: #5c6b58;
+        }
+
+        .auth-form .errorlist {
+            color: #b00020;
+            font-weight: 700;
+            margin: 0.25rem 0 0.4rem;
+            padding-left: 1.2rem;
+        }
+
+        .auth-error,
+        .app-page .alert-error {
+            color: #b00020;
+            border-color: rgba(176, 0, 32, 0.25);
+            background: #ffe8ed;
+        }
+
+        .wide-shell {
+            width: min(1380px, calc(100% - 2rem));
+            margin: 0 auto;
+        }
+
+        .chat-panel {
+            background: #ddfada;
+            min-height: calc(100vh - 76px);
+            padding: 1.5rem;
+        }
+
+        .chat-card {
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(24, 109, 16, 0.12);
+            box-shadow: 0 8px 24px rgba(12, 61, 8, 0.08);
+        }
+
+        .chat-scroll-box {
+            height: 430px;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .message-form-card {
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(24, 109, 16, 0.12);
+            padding: 1rem;
+            box-shadow: 0 8px 24px rgba(12, 61, 8, 0.06);
+        }
+
+        .message-form-card p {
+            margin-bottom: 0.75rem;
+        }
+
+        .message-form-card input,
+        .message-form-card textarea,
+        .message-form-card select {
+            width: 100%;
+            max-width: 100%;
+            border: 1px solid rgba(24, 109, 16, 0.25);
+            border-radius: 6px;
+            padding: 0.6rem 0.7rem;
+        }
+
+        .message-form-card textarea {
+            min-height: 72px;
+        }
+
+        .compact-message-form {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto;
+            gap: 0.75rem;
+            align-items: end;
+        }
+
+        .compact-message-form p {
+            margin: 0;
+        }
+
+        .compact-message-form p:has(input[type="file"]) {
+            display: none;
+        }
+
+        .compact-message-form input[type="file"] {
+            display: none;
+        }
+
+        .compact-message-form textarea {
+            min-height: 46px;
+            max-height: 72px;
+            resize: vertical;
+        }
+
+        .file-button-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .file-picker-button input {
+            display: none;
+        }
+
+        .file-picker-button {
+            cursor: pointer;
+        }
+
+        .voice-control-card {
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid rgba(24, 109, 16, 0.12);
+            padding: 1rem;
+            box-shadow: 0 8px 24px rgba(12, 61, 8, 0.08);
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark px-4 main-navbar">
+    <a class="navbar-brand" href="/channels/">NatCord</a>
+
+    <div>
+        {% if user.is_authenticated %}
+            <a href="/channels/" class="btn btn-outline-light btn-sm">Channels</a>
+            <a href="/search/" class="btn btn-outline-light btn-sm">Search</a>
+            <a href="/notifications/" id="notifications-link" class="btn btn-outline-light btn-sm notification-link {% if unread_notifications_count %}has-unread{% endif %}">
+                Notifications
+                <span class="notification-dot"></span>
+                <span id="notifications-count" class="badge bg-danger {% if not unread_notifications_count %}d-none{% endif %}">
+                    {{ unread_notifications_count }}
+                </span>
+            </a>
+            <a href="/profile/" class="btn btn-outline-light btn-sm">Profile</a>
+            {% if user.role == 'admin' or user.role == 'moderator' or user.is_superuser %}
+                <a href="/reports/" id="reports-link" class="btn btn-outline-light btn-sm notification-link {% if open_reports_count %}has-unread{% endif %}">
+                    Reports
+                    <span class="notification-dot"></span>
+                    <span id="reports-count" class="badge bg-danger {% if not open_reports_count %}d-none{% endif %}">
+                        {{ open_reports_count }}
+                    </span>
+                </a>
+                <a href="/users/" class="btn btn-users btn-sm">Users</a>
+            {% endif %}
+            <a href="/logout/" class="btn btn-danger btn-sm">Logout</a>
+        {% else %}
+            {% if request.path == '/login/' %}
+                <a href="/register/" class="btn btn-auth btn-sm">Register</a>
+            {% else %}
+                <a href="/login/" class="btn btn-auth btn-sm">Login</a>
+            {% endif %}
+        {% endif %}
+    </div>
+</nav>
+
+<div class="{% block container_class %}container mt-4{% endblock %}">
+    {% block global_messages %}
+        {% for message in messages %}
+            <div class="alert alert-info py-2">{{ message }}</div>
+        {% endfor %}
+    {% endblock %}
+    {% block content %}{% endblock %}
+</div>
+
+{% if user.is_authenticated %}
+<div id="notification-toast" class="alert alert-info notification-toast shadow">
+    <strong>New notification</strong>
+    <div id="notification-toast-text"></div>
+</div>
+
+{% if user.role == 'admin' or user.role == 'moderator' or user.is_superuser %}
+<div id="report-toast" class="alert alert-danger notification-toast shadow" style="bottom: 96px;">
+    <strong>New report</strong>
+    <div id="report-toast-text"></div>
+</div>
+{% endif %}
+
+<script>
+    const notificationsLink = document.getElementById("notifications-link");
+    const notificationsCount = document.getElementById("notifications-count");
+    const notificationToast = document.getElementById("notification-toast");
+    const notificationToastText = document.getElementById("notification-toast-text");
+    let lastNotificationId = null;
+    let notificationToastTimeout = null;
+    const reportsLink = document.getElementById("reports-link");
+    const reportsCount = document.getElementById("reports-count");
+    const reportToast = document.getElementById("report-toast");
+    const reportToastText = document.getElementById("report-toast-text");
+    let lastReportId = null;
+    let reportToastTimeout = null;
+
+    function updateNotificationBadge(count) {
+        notificationsCount.textContent = count;
+        if (count > 0) {
+            notificationsCount.classList.remove("d-none");
+            notificationsLink.classList.add("has-unread");
+        } else {
+            notificationsCount.classList.add("d-none");
+            notificationsLink.classList.remove("has-unread");
+        }
+    }
+
+    function showNotificationToast(text) {
+        if (!text) {
+            return;
+        }
+        notificationToastText.textContent = text;
+        notificationToast.style.display = "block";
+        clearTimeout(notificationToastTimeout);
+        notificationToastTimeout = setTimeout(() => {
+            notificationToast.style.display = "none";
+        }, 4500);
+    }
+
+    function updateReportsBadge(count) {
+        if (!reportsLink || !reportsCount) {
+            return;
+        }
+        reportsCount.textContent = count;
+        if (count > 0) {
+            reportsCount.classList.remove("d-none");
+            reportsLink.classList.add("has-unread");
+        } else {
+            reportsCount.classList.add("d-none");
+            reportsLink.classList.remove("has-unread");
+        }
+    }
+
+    function showReportToast(text) {
+        if (!reportToast || !reportToastText || !text) {
+            return;
+        }
+        reportToastText.textContent = text;
+        reportToast.style.display = "block";
+        clearTimeout(reportToastTimeout);
+        reportToastTimeout = setTimeout(() => {
+            reportToast.style.display = "none";
+        }, 4500);
+    }
+
+    async function refreshNotificationState() {
+        try {
+            const response = await fetch("/notifications/state/");
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            updateNotificationBadge(data.unread_count);
+
+            if (lastNotificationId === null) {
+                lastNotificationId = data.latest_id;
+                return;
+            }
+
+            if (data.latest_id && data.latest_id > lastNotificationId) {
+                showNotificationToast(data.latest_text);
+            }
+            lastNotificationId = data.latest_id;
+        } catch (error) {
+            console.warn("Could not refresh notifications.", error);
+        }
+    }
+
+    async function refreshReportState() {
+        if (!reportsLink) {
+            return;
+        }
+        try {
+            const response = await fetch("/reports/state/");
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            updateReportsBadge(data.open_count);
+
+            if (lastReportId === null) {
+                lastReportId = data.latest_id;
+                return;
+            }
+
+            if (data.latest_id && data.latest_id > lastReportId) {
+                showReportToast(data.latest_text);
+            }
+            lastReportId = data.latest_id;
+        } catch (error) {
+            console.warn("Could not refresh reports.", error);
+        }
+    }
+
+    refreshNotificationState();
+    setInterval(refreshNotificationState, 3000);
+    refreshReportState();
+    setInterval(refreshReportState, 3000);
+</script>
+{% endif %}
+
+</body>
+</html>

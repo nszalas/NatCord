@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block container_class %}container-fluid px-0{% endblock %}
+
+{% block content %}
+<div class="row g-0">
+    <div class="col-md-3">
+        {% include 'chat/navigation_sidebar.html' %}
+    </div>
+
+    <div class="col-md-9 chat-panel">
+        <div class="app-card">
+            <h2 class="app-page-title">Report user: {{ reported_user.username }}</h2>
+
+            <form method="post" class="report-form">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <div class="app-action-row">
+                    <button class="btn btn-wine">Submit report</button>
+                    <a href="/channels/" class="btn btn-natcord-dark">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

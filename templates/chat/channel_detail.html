@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block container_class %}container-fluid px-0{% endblock %}
+
+{% block content %}
+<div class="row g-0">
+    <div class="col-md-3">
+        {% include 'chat/navigation_sidebar.html' %}
+    </div>
+
+    <div class="col-md-9 chat-panel">
+        <div class="app-card d-flex justify-content-between align-items-center mb-3">
+            <h3># {{ channel.name }}</h3>
+            {% if user.role == 'admin' or user.is_superuser %}
+                <a href="/channels/{{ channel.id }}/delete/" class="btn btn-outline-danger btn-sm">Delete channel</a>
+            {% endif %}
+        </div>
+
+        {% if channel.description %}
+            <p>{{ channel.description }}</p>
+        {% endif %}
+
+        <div class="chat-card chat-scroll-box mb-3 chat-box">
+            {% include 'chat/channel_messages.html' %}
+        </div>
+
+        {% if user.is_blocked %}
+            <div class="alert alert-warning">Your account is blocked. You cannot send messages.</div>
+        {% else %}
+            <form method="post" enctype="multipart/form-data" id="message-form" class="message-form-card compact-message-form">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ form.content.id_for_label }}">Message</label>
+                    {{ form.content }}
+                    {{ form.image }}
+                    {{ form.audio }}
+                </div>
+                <div class="file-button-row">
+                    <div>
+                        <label class="btn btn-natcord-dark file-picker-button" for="{{ form.image.id_for_label }}">Image</label>
+                        <span class="file-name-hint" id="image-file-name"></span>
+                    </div>
+                    <div>
+                        <label class="btn btn-natcord-dark file-picker-button" for="{{ form.audio.id_for_label }}">Audio</label>
+                        <span class="file-name-hint" id="audio-file-name"></span>
+                    </div>
+                    <button class="btn btn-natcord">Send</button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    const roomId = "{{ channel.id }}";
+    const username = "{{ request.user.username }}";
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(protocol + window.location.host + "/ws/chat/" + roomId + "/");
+    const chatBox = document.querySelector(".chat-box");
+    const form = document.querySelector("#message-form");
+    const channelImageInput = document.querySelector("input[name='image']");
+    const channelAudioInput = document.querySelector("input[name='audio']");
+    const renderedMessages = new Set();
+    let lastMessageId = 0;
+
+    function showSelectedFileName(input, targetId) {
+        const target = document.getElementById(targetId);
+        if (!input || !target) {
+            return;
+        }
+        input.addEventListener("change", () => {
+            target.textContent = input.files.length ? input.files[0].name : "";
+        });
+    }
+
+    showSelectedFileName(channelImageInput, "image-file-name");
+    showSelectedFileName(channelAudioInput, "audio-file-name");
+
+    {% for msg in chat_messages %}
+        renderedMessages.add({{ msg.id }});
+        lastMessageId = Math.max(lastMessageId, {{ msg.id }});
+    {% endfor %}
+
+    function appendMessage(data) {
+        if (!data.id || renderedMessages.has(data.id)) {
+            return;
+        }
+
+        renderedMessages.add(data.id);
+        lastMessageId = Math.max(lastMessageId, data.id);
+
+        const row = document.createElement("div");
+        row.className = "mb-3 d-flex gap-2";
+        row.id = "message-" + data.id;
+
+        if (data.avatar_url) {
+            const image = document.createElement("img");
+            image.src = data.avatar_url;
+            image.alt = data.username;
+            image.className = "avatar-sm";
+            row.appendChild(image);
+        } else {
+            const fallback = document.createElement("span");
+            fallback.className = "avatar-fallback";
+            fallback.textContent = data.username.charAt(0).toUpperCase();
+            row.appendChild(fallback);
+        }
+
+        const body = document.createElement("div");
+        body.className = "message-body";
+        const header = document.createElement("div");
+        header.className = "message-header";
+        const headerLeft = document.createElement("div");
+        const usernameEl = document.createElement("b");
+        usernameEl.textContent = data.username;
+        headerLeft.appendChild(usernameEl);
+
+        if (typeof data.is_online !== "undefined") {
+            const badge = document.createElement("span");
+            badge.className = data.is_online ? "badge bg-success ms-1" : "badge bg-secondary ms-1";
+            badge.textContent = data.is_online ? "online" : "offline";
+            headerLeft.appendChild(badge);
+        }
+        header.appendChild(headerLeft);
+
+        if (data.created_at) {
+            const timestamp = document.createElement("small");
+            timestamp.className = "text-muted message-timestamp";
+            timestamp.textContent = data.created_at;
+            header.appendChild(timestamp);
+        }
+
+        const content = document.createElement("div");
+        content.textContent = data.message || data.content || "";
+
+        body.appendChild(header);
+        body.appendChild(content);
+
+        if (data.image_url) {
+            const imageWrap = document.createElement("div");
+            const image = document.createElement("img");
+            image.src = data.image_url;
+            image.className = "img-fluid mt-1";
+            image.style.maxHeight = "220px";
+            imageWrap.appendChild(image);
+            body.appendChild(imageWrap);
+        }
+
+        if (data.audio_url) {
+            const audioWrap = document.createElement("div");
+            const audio = document.createElement("audio");
+            audio.controls = true;
+            audio.src = data.audio_url;
+            audio.className = "mt-1";
+            audioWrap.appendChild(audio);
+            body.appendChild(audioWrap);
+        }
+
+        if (data.can_delete && data.delete_url) {
+            const deleteLink = document.createElement("a");
+            deleteLink.href = data.delete_url;
+            deleteLink.className = "btn btn-danger btn-sm mt-1";
+            deleteLink.textContent = "Delete";
+            body.appendChild(deleteLink);
+        }
+
+        row.appendChild(body);
+        chatBox.appendChild(row);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function scrollChatToBottom() {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    scrollChatToBottom();
+
+    socket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        appendMessage({
+            id: data.message_id,
+            username: data.username,
+            message: data.message,
+            avatar_url: data.avatar_url,
+            created_at: data.created_at
+        });
+    };
+
+    async function fetchLatestMessages() {
+        try {
+            const response = await fetch(`/channels/${roomId}/messages/latest/?after=${lastMessageId}`);
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            if (data.latest_id && data.latest_id > lastMessageId && data.html) {
+                const wasNearBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 80;
+                chatBox.innerHTML = data.html;
+                lastMessageId = data.latest_id;
+                renderedMessages.clear();
+                chatBox.querySelectorAll("[id^='message-']").forEach((node) => {
+                    const id = Number(node.id.replace("message-", ""));
+                    if (id) {
+                        renderedMessages.add(id);
+                    }
+                });
+                if (wasNearBottom) {
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+                return;
+            }
+            data.messages.forEach(appendMessage);
+        } catch (error) {
+            console.warn("Could not fetch new messages.", error);
+        }
+    }
+
+    setInterval(fetchLatestMessages, 2000);
+
+    if (form) {
+        form.addEventListener("submit", function(e) {
+            const contentInput = form.querySelector("textarea[name='content']");
+            const imageInput = form.querySelector("input[name='image']");
+            const audioInput = form.querySelector("input[name='audio']");
+            const hasFile = (imageInput && imageInput.files.length) || (audioInput && audioInput.files.length);
+            const message = contentInput ? contentInput.value.trim() : "";
+
+            if (!hasFile && message && socket.readyState === WebSocket.OPEN) {
+                e.preventDefault();
+                socket.send(JSON.stringify({"message": message, "username": username}));
+                contentInput.value = "";
+            }
+        });
+    }
+</script>
+{% endblock %}

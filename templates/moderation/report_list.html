@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block container_class %}app-page{% endblock %}
+
+{% block content %}
+<div class="wide-app-shell">
+    <h2 class="app-page-title">Reports</h2>
+
+    <div class="app-card p-0 overflow-hidden">
+        <table class="table app-table align-middle">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Reporter</th>
+                    <th>Reported user</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                    <tr>
+                        <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ report.reporter.username }}</td>
+                        <td>
+                            <strong>{{ report.reported_user.username }}</strong>
+                            {% if report.reported_user.is_blocked %}
+                                <span class="badge bg-danger">blocked</span>
+                            {% endif %}
+                            <div class="mt-2">
+                                <a href="/users/{{ report.reported_user.id }}/block/" class="btn btn-sm btn-wine">
+                                    {% if report.reported_user.is_blocked %}Unblock{% else %}Block{% endif %}
+                                </a>
+                            </div>
+                        </td>
+                        <td style="min-width: 220px;">{{ report.reason }}</td>
+                        <td>
+                            <form method="post" action="/reports/{{ report.id }}/status/" class="app-action-row">
+                                {% csrf_token %}
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="new" {% if report.status == 'new' %}selected{% endif %}>New</option>
+                                    <option value="reviewed" {% if report.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                                    <option value="rejected" {% if report.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                                </select>
+                                <button class="btn btn-sm btn-natcord">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5">No reports yet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

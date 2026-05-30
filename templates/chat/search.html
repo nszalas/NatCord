@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block container_class %}app-page{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+    <h2 class="app-page-title">Search</h2>
+
+    <div class="app-card">
+        <form method="get">
+            <div class="input-group">
+                <input name="q" value="{{ query }}" class="form-control app-input" placeholder="Channel name, username, or email">
+                <button class="btn btn-natcord">Search</button>
+            </div>
+        </form>
+    </div>
+
+    {% if query %}
+        <h4 class="app-section-title">Channels</h4>
+        <div>
+            {% for channel in channels %}
+                <a href="/channels/{{ channel.id }}/" class="app-card d-block text-decoration-none text-dark">
+                    <strong># {{ channel.name }}</strong>
+                    <div class="text-muted">{{ channel.description }}</div>
+                </a>
+            {% empty %}
+                <div class="app-card">No channels found.</div>
+            {% endfor %}
+        </div>
+
+        <h4 class="app-section-title">Users</h4>
+        <div>
+            {% for found_user in users %}
+                <div class="app-card user-list-row">
+                    <span class="user-list-main">
+                        {% if found_user.avatar %}
+                            <img src="{{ found_user.avatar.url }}" alt="{{ found_user.username }}" class="avatar-sm">
+                        {% else %}
+                            <span class="avatar-fallback">{{ found_user.username|first|upper }}</span>
+                        {% endif %}
+                        <span class="user-list-name">
+                            <strong>{{ found_user.username }}</strong>
+                            {% if found_user.is_online %}
+                                <span class="badge bg-success">online</span>
+                            {% else %}
+                                <span class="badge bg-secondary">offline</span>
+                            {% endif %}
+                        </span>
+                    </span>
+                    <span class="d-flex gap-2">
+                        <a href="/dm/{{ found_user.id }}/" class="btn btn-sm btn-natcord">DM</a>
+                        <a href="/users/{{ found_user.id }}/report/" class="btn btn-sm btn-report-user">Report</a>
+                    </span>
+                </div>
+            {% empty %}
+                <div class="app-card">No users found.</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

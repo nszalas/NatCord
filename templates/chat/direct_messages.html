@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block container_class %}container-fluid px-0{% endblock %}
+
+{% block content %}
+<div class="row g-0">
+    <div class="col-md-3">
+        {% include 'chat/navigation_sidebar.html' %}
+    </div>
+
+    <div class="col-md-9 chat-panel">
+        <div class="app-card d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                {% if other_user.avatar %}
+                    <img src="{{ other_user.avatar.url }}" alt="{{ other_user.username }}" class="avatar-sm">
+                {% else %}
+                    <span class="avatar-fallback">{{ other_user.username|first|upper }}</span>
+                {% endif %}
+                <div>
+                    <h3 class="mb-0">DM: {{ other_user.username }}</h3>
+                    {% if other_user.is_online %}
+                        <span class="badge bg-success">online</span>
+                    {% else %}
+                        <span class="badge bg-secondary">offline</span>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="/users/{{ other_user.id }}/report/" class="btn btn-sm btn-report-user">Report<br>user</a>
+        </div>
+
+        <div class="chat-card chat-scroll-box dm-box mb-3">
+            {% include 'chat/direct_messages_list.html' %}
+        </div>
+
+        {% if user.is_blocked %}
+            <div class="alert alert-warning">Your account is blocked. You cannot send messages.</div>
+        {% else %}
+            <form method="post" enctype="multipart/form-data" class="message-form-card compact-message-form">
+                {% csrf_token %}
+                <div>
+                    <label for="{{ form.content.id_for_label }}">Message</label>
+                    {{ form.content }}
+                    {{ form.image }}
+                    {{ form.audio }}
+                </div>
+                <div class="file-button-row">
+                    <div>
+                        <label class="btn btn-natcord-dark file-picker-button" for="{{ form.image.id_for_label }}">Image</label>
+                        <span class="file-name-hint" id="image-file-name"></span>
+                    </div>
+                    <div>
+                        <label class="btn btn-natcord-dark file-picker-button" for="{{ form.audio.id_for_label }}">Audio</label>
+                        <span class="file-name-hint" id="audio-file-name"></span>
+                    </div>
+                    <button class="btn btn-natcord">Send</button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    const dmUserId = "{{ other_user.id }}";
+    const dmBox = document.querySelector(".dm-box");
+    const dmImageInput = document.querySelector("input[name='image']");
+    const dmAudioInput = document.querySelector("input[name='audio']");
+    let lastDirectMessageId = 0;
+
+    function showSelectedFileName(input, targetId) {
+        const target = document.getElementById(targetId);
+        if (!input || !target) {
+            return;
+        }
+        input.addEventListener("change", () => {
+            target.textContent = input.files.length ? input.files[0].name : "";
+        });
+    }
+
+    showSelectedFileName(dmImageInput, "image-file-name");
+    showSelectedFileName(dmAudioInput, "audio-file-name");
+
+    {% for msg in direct_messages %}
+        lastDirectMessageId = Math.max(lastDirectMessageId, {{ msg.id }});
+    {% endfor %}
+
+    function scrollDirectMessagesToBottom() {
+        dmBox.scrollTop = dmBox.scrollHeight;
+    }
+
+    scrollDirectMessagesToBottom();
+
+    async function fetchLatestDirectMessages() {
+        try {
+            const response = await fetch(`/dm/${dmUserId}/latest/?after=${lastDirectMessageId}`);
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            if (data.latest_id && data.latest_id > lastDirectMessageId && data.html) {
+                const wasNearBottom = dmBox.scrollTop + dmBox.clientHeight >= dmBox.scrollHeight - 80;
+                dmBox.innerHTML = data.html;
+                lastDirectMessageId = data.latest_id;
+                if (wasNearBottom) {
+                    dmBox.scrollTop = dmBox.scrollHeight;
+                }
+            }
+        } catch (error) {
+            console.warn("Could not fetch new direct messages.", error);
+        }
+    }
+
+    setInterval(fetchLatestDirectMessages, 2000);
+</script>
+{% endblock %}

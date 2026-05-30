@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block container_class %}container-fluid px-0{% endblock %}
+
+{% block content %}
+<div class="row g-0">
+    <div class="col-md-3">
+        {% include 'chat/navigation_sidebar.html' %}
+    </div>
+
+    <div class="col-md-9 chat-panel">
+        <div class="app-card d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="app-page-title mb-1">Voice: {{ voice_channel.name }}</h2>
+                <p class="mb-0">{{ voice_channel.description }}</p>
+            </div>
+            <div>
+                <a href="/channels/" class="btn btn-natcord-dark btn-sm">Channels</a>
+                {% if user.role == 'admin' or user.is_superuser %}
+                    <a href="/voice/{{ voice_channel.id }}/delete/" class="btn btn-wine btn-sm">Delete channel</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="voice-control-card">
+            <div class="alert alert-info" id="voice-status">
+                Click Start to join the voice chat with your microphone.
+            </div>
+
+            <div class="mb-3 app-action-row">
+                <button class="btn btn-natcord" id="start-call">Start</button>
+                <button class="btn btn-wine" id="leave-call" disabled>Disconnect</button>
+                <button class="btn btn-natcord-dark" id="mute-call" disabled>Mute microphone</button>
+            </div>
+
+            <h5 class="app-section-title">Participants in this window</h5>
+            <ul class="list-group mb-3" id="participants"></ul>
+
+            <div id="remote-audio"></div>
+        </div>
+    </div>
+</div>
+
+{{ request.user.id|json_script:"current-user-id" }}
+{{ request.user.username|json_script:"current-username" }}
+{{ voice_channel.id|json_script:"voice-channel-id" }}
+
+<script>
+    const currentUserId = JSON.parse(document.getElementById("current-user-id").textContent);
+    const currentUsername = JSON.parse(document.getElementById("current-username").textContent);
+    const voiceChannelId = JSON.parse(document.getElementById("voice-channel-id").textContent);
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+
+    const statusBox = document.getElementById("voice-status");
+    const startButton = document.getElementById("start-call");
+    const leaveButton = document.getElementById("leave-call");
+    const muteButton = document.getElementById("mute-call");
+    const participants = document.getElementById("participants");
+    const remoteAudio = document.getElementById("remote-audio");
+
+    let socket = null;
+    let localStream = null;
+    let muted = false;
+    const peers = {};
+    const peerNames = {};
+
+    function setStatus(text, type = "info") {
+        statusBox.className = "alert alert-" + type;
+        statusBox.textContent = text;
+    }
+
+    function renderParticipants() {
+        participants.innerHTML = "";
+        const selfItem = document.createElement("li");
+        selfItem.className = "list-group-item";
+        selfItem.textContent = currentUsername + " (Ty)";
+        participants.appendChild(selfItem);
+
+        Object.keys(peerNames).forEach((userId) => {
+            const item = document.createElement("li");
+            item.className = "list-group-item";
+            item.textContent = peerNames[userId];
+            participants.appendChild(item);
+        });
+    }
+
+    function createPeerConnection(remoteUserId, remoteUsername, shouldOffer) {
+        if (peers[remoteUserId]) {
+            return peers[remoteUserId];
+        }
+
+        peerNames[remoteUserId] = remoteUsername || ("User " + remoteUserId);
+        renderParticipants();
+
+        const connection = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        });
+        peers[remoteUserId] = connection;
+
+        localStream.getTracks().forEach((track) => connection.addTrack(track, localStream));
+
+        connection.onicecandidate = (event) => {
+            if (event.candidate) {
+                sendSignal({
+                    type: "ice-candidate",
+                    target: Number(remoteUserId),
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        connection.ontrack = (event) => {
+            let audio = document.getElementById("audio-" + remoteUserId);
+            if (!audio) {
+                audio = document.createElement("audio");
+                audio.id = "audio-" + remoteUserId;
+                audio.autoplay = true;
+                audio.controls = true;
+                remoteAudio.appendChild(audio);
+            }
+            audio.srcObject = event.streams[0];
+        };
+
+        connection.onconnectionstatechange = () => {
+            if (["failed", "closed", "disconnected"].includes(connection.connectionState)) {
+                removePeer(remoteUserId);
+            }
+        };
+
+        if (shouldOffer) {
+            connection.createOffer()
+                .then((offer) => connection.setLocalDescription(offer))
+                .then(() => sendSignal({
+                    type: "offer",
+                    target: Number(remoteUserId),
+                    offer: connection.localDescription
+                }));
+        }
+
+        return connection;
+    }
+
+    function removePeer(userId) {
+        if (peers[userId]) {
+            peers[userId].close();
+            delete peers[userId];
+        }
+        delete peerNames[userId];
+        const audio = document.getElementById("audio-" + userId);
+        if (audio) {
+            audio.remove();
+        }
+        renderParticipants();
+    }
+
+    function sendSignal(payload) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(payload));
+        }
+    }
+
+    async function startVoice() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch (error) {
+            setStatus("Could not access the microphone.", "danger");
+            return;
+        }
+
+        socket = new WebSocket(protocol + window.location.host + "/ws/voice/" + voiceChannelId + "/");
+
+        socket.onopen = () => {
+            sendSignal({ type: "join" });
+            setStatus("Connected to the voice channel.", "success");
+            startButton.disabled = true;
+            leaveButton.disabled = false;
+            muteButton.disabled = false;
+            renderParticipants();
+        };
+
+        socket.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            if (data.sender === currentUserId) {
+                return;
+            }
+
+            if (data.type === "user-joined") {
+                createPeerConnection(data.sender, data.username, true);
+            }
+
+            if (data.type === "user-left") {
+                removePeer(data.sender);
+            }
+
+            if (data.type === "offer" && data.target === currentUserId) {
+                const connection = createPeerConnection(data.sender, data.username, false);
+                await connection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await connection.createAnswer();
+                await connection.setLocalDescription(answer);
+                sendSignal({
+                    type: "answer",
+                    target: data.sender,
+                    answer: connection.localDescription
+                });
+            }
+
+            if (data.type === "answer" && data.target === currentUserId && peers[data.sender]) {
+                await peers[data.sender].setRemoteDescription(new RTCSessionDescription(data.answer));
+            }
+
+            if (data.type === "ice-candidate" && data.target === currentUserId && peers[data.sender]) {
+                await peers[data.sender].addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        };
+
+        socket.onclose = () => {
+            setStatus("Disconnected from the voice channel.", "warning");
+            cleanupVoice();
+        };
+    }
+
+    function cleanupVoice() {
+        Object.keys(peers).forEach(removePeer);
+        if (localStream) {
+            localStream.getTracks().forEach((track) => track.stop());
+            localStream = null;
+        }
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.close();
+        }
+        socket = null;
+        startButton.disabled = false;
+        leaveButton.disabled = true;
+        muteButton.disabled = true;
+        muted = false;
+        muteButton.textContent = "Mute microphone";
+        renderParticipants();
+    }
+
+    startButton.addEventListener("click", startVoice);
+
+    leaveButton.addEventListener("click", () => {
+        sendSignal({ type: "leave" });
+        cleanupVoice();
+        setStatus("Left the voice channel.", "secondary");
+    });
+
+    muteButton.addEventListener("click", () => {
+        if (!localStream) {
+            return;
+        }
+        muted = !muted;
+        localStream.getAudioTracks().forEach((track) => {
+            track.enabled = !muted;
+        });
+        muteButton.textContent = muted ? "Unmute microphone" : "Mute microphone";
+    });
+
+    window.addEventListener("beforeunload", () => {
+        sendSignal({ type: "leave" });
+    });
+</script>
+{% endblock %}

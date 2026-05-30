@@ -1,0 +1,72 @@
+<div class="channels-sidebar text-white p-3">
+    <h5 class="channels-sidebar-title">Channels</h5>
+    <ul class="list-group mb-3">
+        {% for nav_channel in channels %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a class="channel-link" href="/channels/{{ nav_channel.id }}/">{{ nav_channel.name }}</a>
+                {% if user not in nav_channel.members.all and user.role != 'admin' and not user.is_superuser %}
+                    <a href="/channels/{{ nav_channel.id }}/join/" class="btn btn-sm btn-outline-primary">Join</a>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li class="list-group-item">No channels yet.</li>
+        {% endfor %}
+    </ul>
+
+    {% if channel_form and user.role == 'admin' or channel_form and user.is_superuser %}
+        <div class="admin-create-card">
+            <h6 class="admin-form-title">New channel</h6>
+            <form method="post" action="/channels/">
+                {% csrf_token %}
+                {{ channel_form.as_p }}
+                <button class="btn btn-create-channel">Create</button>
+            </form>
+        </div>
+    {% endif %}
+
+    <hr>
+    <h5 class="channels-sidebar-title">Voice channels</h5>
+    <ul class="list-group mb-3">
+        {% for voice_channel in voice_channels %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a class="channel-link" href="/voice/{{ voice_channel.id }}/">{{ voice_channel.name }}</a>
+                {% if user not in voice_channel.members.all and user.role != 'admin' and not user.is_superuser %}
+                    <a href="/voice/{{ voice_channel.id }}/join/" class="btn btn-sm btn-outline-primary">Join</a>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li class="list-group-item">No voice channels yet.</li>
+        {% endfor %}
+    </ul>
+
+    {% if voice_form and user.role == 'admin' or voice_form and user.is_superuser %}
+        <div class="admin-create-card">
+            <h6 class="admin-form-title">New voice channel</h6>
+            <form method="post" action="/channels/">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="voice">
+                {{ voice_form.as_p }}
+                <button class="btn btn-create-channel">Create</button>
+            </form>
+        </div>
+    {% endif %}
+
+    <hr>
+    <h5 class="channels-sidebar-title">Direct messages</h5>
+    <ul class="list-group">
+        {% for dm_user in users %}
+            <li class="list-group-item">
+                <a class="channel-link" href="/dm/{{ dm_user.id }}/">
+                    {{ dm_user.username }}
+                    {% if dm_user.is_online %}
+                        <span class="badge bg-success">online</span>
+                    {% else %}
+                        <span class="badge bg-secondary">offline</span>
+                    {% endif %}
+                </a>
+            </li>
+        {% empty %}
+            <li class="list-group-item">No other users yet.</li>
+        {% endfor %}
+    </ul>
+</div>

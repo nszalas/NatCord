@@ -1,0 +1,45 @@
+{% for msg in chat_messages %}
+    <div class="mb-3 d-flex gap-2" id="message-{{ msg.id }}">
+        {% if msg.author.avatar %}
+            <img src="{{ msg.author.avatar.url }}" alt="{{ msg.author.username }}" class="avatar-sm">
+        {% else %}
+            <span class="avatar-fallback">{{ msg.author.username|first|upper }}</span>
+        {% endif %}
+
+        <div class="message-body">
+            <div class="message-header">
+                <div>
+                    <b>{{ msg.author.username }}</b>
+                    {% if msg.author.is_online %}
+                        <span class="badge bg-success">online</span>
+                    {% else %}
+                        <span class="badge bg-secondary">offline</span>
+                    {% endif %}
+                </div>
+                <small class="text-muted message-timestamp">{{ msg.created_at|date:"Y-m-d H:i" }}</small>
+            </div>
+            <div>{{ msg.content }}</div>
+            {% if msg.image %}
+                <div><img src="{{ msg.image.url }}" class="img-fluid mt-1" style="max-height:220px;"></div>
+            {% endif %}
+            {% if msg.audio %}
+                <div><audio controls src="{{ msg.audio.url }}" class="mt-1"></audio></div>
+            {% endif %}
+
+            {% if user == msg.author or user.role == 'admin' or user.role == 'moderator' or user.is_superuser %}
+                <a href="/messages/delete/{{ msg.id }}/" class="btn btn-danger btn-sm mt-1">Delete</a>
+            {% endif %}
+            <div class="mt-1">
+                {% for reaction in msg.reaction_summary %}
+                    <a class="btn btn-sm {% if reaction.active %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                       href="/messages/{{ msg.id }}/react/{{ reaction.emoji }}/"
+                       title="{{ reaction.label }}">
+                        {{ reaction.emoji }} {{ reaction.count }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% empty %}
+    <p class="text-muted">No messages yet.</p>
+{% endfor %}
