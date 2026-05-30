@@ -19,12 +19,34 @@ class MessageForm(forms.ModelForm):
     class Meta:
         model = Message
         fields = ["content", "image", "audio"]
+        widgets = {
+            "content": forms.Textarea(attrs={"rows": 2}),
+            "image": forms.ClearableFileInput(attrs={
+                "accept": "image/*",
+                "class": "visually-hidden",
+            }),
+            "audio": forms.ClearableFileInput(attrs={
+                "accept": "audio/*,.mp3,.wav,.m4a,.ogg,.webm",
+                "class": "visually-hidden",
+            }),
+        }
 
 
 class DirectMessageForm(forms.ModelForm):
     class Meta:
         model = DirectMessage
         fields = ["content", "image", "audio"]
+        widgets = {
+            "content": forms.Textarea(attrs={"rows": 2}),
+            "image": forms.ClearableFileInput(attrs={
+                "accept": "image/*",
+                "class": "visually-hidden",
+            }),
+            "audio": forms.ClearableFileInput(attrs={
+                "accept": "audio/*,.mp3,.wav,.m4a,.ogg,.webm",
+                "class": "visually-hidden",
+            }),
+        }
 
 
 class SearchForm(forms.Form):
